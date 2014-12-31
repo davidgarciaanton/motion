@@ -28,6 +28,7 @@ import android.widget.ImageView;
 public class ParallaxImageView extends ImageView implements SensorEventListener {
 
     private static final String TAG = ParallaxImageView.class.getName();
+    private static final float DEFAULT_INTENSITY = 1.2f;
 
     /**
      * If the x and y axis' intensities are scaled to the image's aspect ratio (true) or
@@ -41,7 +42,8 @@ public class ParallaxImageView extends ImageView implements SensorEventListener 
     /**
      * The intensity of the parallax effect, giving the perspective of depth.
      */
-    private float mParallaxIntensity = 1.2f;
+    private float mXParallaxIntensity = DEFAULT_INTENSITY;
+    private float mYParallaxIntensity = DEFAULT_INTENSITY;
 
     /**
      * The maximum percentage of offset translation that the image can move for each
@@ -57,6 +59,8 @@ public class ParallaxImageView extends ImageView implements SensorEventListener 
     private float mYTranslation;
     private float mXOffset;
     private float mYOffset;
+
+    private boolean horizontal;
 
     public ParallaxImageView(Context context) {
         this(context, null);
@@ -81,19 +85,29 @@ public class ParallaxImageView extends ImageView implements SensorEventListener 
             final TypedArray customAttrs = context.obtainStyledAttributes(attrs, R.styleable.ParallaxImageView);
 
             if (customAttrs != null) {
-                if (customAttrs.hasValue(R.styleable.ParallaxImageView_intensity))
-                    setParallaxIntensity(customAttrs.getFloat(R.styleable.ParallaxImageView_intensity, mParallaxIntensity));
 
-                if (customAttrs.hasValue(R.styleable.ParallaxImageView_scaledIntensity))
+
+                if (customAttrs.hasValue(R.styleable.ParallaxImageView_intensity)) {
+                    setParallaxIntensity(customAttrs.getFloat(R.styleable.ParallaxImageView_intensity, mXParallaxIntensity));
+                } else {
+                    // allow separate intensities
+                    mXParallaxIntensity = customAttrs.getFloat(R.styleable.ParallaxImageView_xIntensity, DEFAULT_INTENSITY);
+                    mYParallaxIntensity = customAttrs.getFloat(R.styleable.ParallaxImageView_yIntensity, DEFAULT_INTENSITY);
+                }
+
+                if (customAttrs.hasValue(R.styleable.ParallaxImageView_scaledIntensity)) {
                     setScaledIntensities(customAttrs.getBoolean(R.styleable.ParallaxImageView_scaledIntensity, mScaledIntensities));
+                }
 
-                if (customAttrs.hasValue(R.styleable.ParallaxImageView_tiltSensitivity))
-                    setTiltSensitivity(customAttrs.getFloat(R.styleable.ParallaxImageView_tiltSensitivity,
-                            mSensorInterpreter.getTiltSensitivity()));
+                if (customAttrs.hasValue(R.styleable.ParallaxImageView_tiltSensitivity)) {
+                    setTiltSensitivity(
+                            customAttrs.getFloat(R.styleable.ParallaxImageView_tiltSensitivity, mSensorInterpreter.getTiltSensitivity()));
+                }
 
-                if (customAttrs.hasValue(R.styleable.ParallaxImageView_forwardTiltOffset))
+                if (customAttrs.hasValue(R.styleable.ParallaxImageView_forwardTiltOffset)) {
                     setForwardTiltOffset(customAttrs.getFloat(R.styleable.ParallaxImageView_forwardTiltOffset,
-                            mSensorInterpreter.getForwardTiltOffset()));
+                                                              mSensorInterpreter.getForwardTiltOffset()));
+                }
 
                 customAttrs.recycle();
             }
@@ -124,7 +138,24 @@ public class ParallaxImageView extends ImageView implements SensorEventListener 
         if (parallaxIntensity < 1)
             throw new IllegalArgumentException("Parallax effect must have a intensity of 1.0 or greater");
 
-        mParallaxIntensity = parallaxIntensity;
+        mXParallaxIntensity = parallaxIntensity;
+        mYParallaxIntensity = parallaxIntensity;
+        configureMatrix();
+    }
+
+    public void setXParallaxIntensity(float parallaxIntensity) {
+        if (parallaxIntensity < 1)
+            throw new IllegalArgumentException("Parallax effect must have a intensity of 1.0 or greater");
+
+        this.mXParallaxIntensity = parallaxIntensity;
+        configureMatrix();
+    }
+
+    public void setYParallaxIntensity(float parallaxIntensity) {
+        if (parallaxIntensity < 1)
+            throw new IllegalArgumentException("Parallax effect must have a intensity of 1.0 or greater");
+
+        this.mYParallaxIntensity = parallaxIntensity;
         configureMatrix();
     }
 
@@ -183,6 +214,12 @@ public class ParallaxImageView extends ImageView implements SensorEventListener 
         if (Math.abs(x) > 1 || Math.abs(y) > 1)
             throw new IllegalArgumentException("Parallax effect cannot translate more than 100% of its off-screen size");
 
+        if (horizontal) {
+            y = 0;
+        } else {
+            x = 0;
+        }
+
         float xScale, yScale;
 
         if (mScaledIntensities) {
@@ -235,19 +272,22 @@ public class ParallaxImageView extends ImageView implements SensorEventListener 
 
         if (dWidth * vHeight > vWidth * dHeight) {
             scale = (float) vHeight / (float) dHeight;
-            mXOffset = (vWidth - dWidth * scale * mParallaxIntensity) * 0.5f;
-            mYOffset = (vHeight - dHeight * scale * mParallaxIntensity) * 0.5f;
+            horizontal = true;
         } else {
             scale = (float) vWidth / (float) dWidth;
-            mXOffset = (vWidth - dWidth * scale * mParallaxIntensity) * 0.5f;
-            mYOffset = (vHeight - dHeight * scale * mParallaxIntensity) * 0.5f;
+            horizontal = false;
         }
+
+        /*mXOffset = (vWidth - dWidth * scale * mXParallaxIntensity) * 0.5f;
+        mYOffset = (vHeight - dHeight * scale * mYParallaxIntensity) * 0.5f;*/
+        mXOffset = (vWidth - dWidth * scale) * 0.5f;
+        mYOffset = (vHeight - dHeight * scale) * 0.5f;
 
         dx = mXOffset + mXTranslation;
         dy = mYOffset + mYTranslation;
 
         mTranslationMatrix.set(getImageMatrix());
-        mTranslationMatrix.setScale(mParallaxIntensity * scale, mParallaxIntensity * scale);
+        mTranslationMatrix.setScale(scale, scale);
         mTranslationMatrix.postTranslate(dx, dy);
         setImageMatrix(mTranslationMatrix);
     }

@@ -2,6 +2,8 @@
 <resources>
     <declare-styleable name="ParallaxImageView">
         <attr name="intensity" format="float"/>
+        <attr name="xIntensity" format="float"/>
+        <attr name="yIntensity" format="float"/>
         <attr name="tiltSensitivity" format="float"/>
         <attr name="forwardTiltOffset" format="float"/>
         <attr name="scaledIntensity" format="boolean"/>
